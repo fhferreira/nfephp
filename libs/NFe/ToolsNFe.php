@@ -1741,40 +1741,43 @@ class ToolsNFe extends BaseTools
      * @return string
      * @throws Exception\RuntimeException
      */
-    public function sefazDownload($chNFe = '', $tpAmb = '', $cnpj = '', &$aRetorno = array())
-    {
+    public function sefazDownload($chNFe = '', $tpAmb = '', $cnpj = '', &$aRetorno = array(), $ultimoNSU = 0) {
         if ($tpAmb == '') {
             $tpAmb = $this->aConfig['tpAmb'];
         }
+        $siglaUF = $this->aConfig['siglaUF'];
         if ($cnpj == '') {
             $cnpj = $this->aConfig['cnpj'];
         }
         //carrega serviço
-        $servico = 'NfeDownloadNF';
+        $servico = 'NfeDistribuicaoDFe';
         $this->zLoadServico(
             'nfe',
             $servico,
             'AN',
             $tpAmb
         );
+
         if ($this->urlService == '') {
-            $msg = "O status não está disponível na SEFAZ !!!";
+            $msg = "A distribuição de documento DFe não está disponível na SEFAZ !!!";
             throw new Exception\RuntimeException($msg);
         }
-        $cons = "<downloadNFe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
-                . "<tpAmb>$tpAmb</tpAmb>"
-                . "<xServ>DOWNLOAD NFE</xServ>"
-                . "<CNPJ>$cnpj</CNPJ>"
-                . "<chNFe>$chNFe</chNFe>"
-                . "</downloadNFe>";
-        //validar mensagem com xsd
-        //if (! $this->validarXml($cons)) {
-        //    $msg = 'Falha na validação. '.$this->error;
-        //    throw new Exception\RuntimeException($msg);
-        //}
+        $cUF = self::getcUF($siglaUF);
+
+        $ultimoNSU = str_pad($ultimoNSU, 15, '0', STR_PAD_LEFT);
+
+        //monta a consulta
+        $tagchNFe = "<distNSU><ultNSU>{$ultimoNSU}</ultNSU></distNSU>";
+        $cons = "<distDFeInt xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
+            . "<tpAmb>$tpAmb</tpAmb>"
+            . "<cUFAutor>$cUF</cUFAutor>"
+            . "<CNPJ>$cnpj</CNPJ>".$tagchNFe."</distDFeInt>";
         //montagem dos dados da mensagem SOAP
-        $body = "<nfeDadosMsg xmlns=\"$this->urlNamespace\">$cons</nfeDadosMsg>";
-        //consome o webservice e verifica o retorno do SOAP
+        $body = "<nfeDistDFeInteresse xmlns=\"$this->urlNamespace\">"
+            . "<nfeDadosMsg xmlns=\"$this->urlNamespace\">$cons</nfeDadosMsg>"
+            . "</nfeDistDFeInteresse>";
+
+        //envia dados via SOAP e verifica o retorno este webservice não requer cabeçalho
         $retorno = $this->oSoap->send(
             $this->urlService,
             $this->urlNamespace,
